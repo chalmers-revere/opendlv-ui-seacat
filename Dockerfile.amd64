@@ -31,5 +31,6 @@ FROM alpine:3.8
 
 WORKDIR /usr/bin
 COPY --from=builder /tmp/dest /usr
+COPY http /srv/http
 
 CMD ["/usr/bin/opendlv-ui-seacat"]
