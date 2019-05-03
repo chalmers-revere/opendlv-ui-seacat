@@ -2,7 +2,7 @@
 let ctx;
 let canvas;
 
-const downScale = 0.50;
+const downScale = 1.0;
 const senderStampMotorLeft = 0;
 const senderStampMotorRight = 10;
 
