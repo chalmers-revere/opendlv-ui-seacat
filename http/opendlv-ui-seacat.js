@@ -1,6 +1,8 @@
 
 let ctx;
 let canvas;
+let map;
+let markers;
 
 const downScale = 1.0;
 const senderStampMotorLeft = 0;
@@ -9,6 +11,63 @@ const senderStampMotorRight = 10;
 let isSailing = false;
 let motorRpmLeft = 0;
 let motorRpmRight = 0;
+let changedView = false;
+
+window.onload = function (evt) {
+  initMap();
+  init2dView();
+  initLibcluon();
+}
+
+document.body.onmousedown = function (evt) {
+  var pos = getMousePos(canvas, evt);
+  if (pos.x < 0 || pos.x > canvas.width ||
+      pos.y < 0 || pos.y > canvas.height) {
+    isSailing = false;
+    motorRpmLeft = 0;
+    motorRpmRight = 0;
+  } else {
+    isSailing = true;
+  }
+}
+
+document.body.onmousemove = function (evt) {
+  if (isSailing) {
+    var pos = getMousePos(canvas, evt);
+    if (pos.x < 0 || pos.x > canvas.width ||
+        pos.y < 0 || pos.y > canvas.height) {
+    } else {
+      const baseRpm = downScale * (2 * (1.0 - pos.y / canvas.height) - 1);
+      const sideScale = pos.x / canvas.width;
+      if (sideScale < 0.5) {
+        motorRpmRight = baseRpm * (pos.x / (0.5 * canvas.width));
+      } else {
+        motorRpmRight = baseRpm;
+      }
+      if (sideScale > 0.5) {
+        motorRpmLeft = baseRpm * (1.0 - ((pos.x - 0.5 * canvas.width) / (0.5 * canvas.width)));
+      } else {
+        motorRpmLeft = baseRpm;
+      }
+    }
+  }
+}
+
+document.body.onmouseup = function (evt) {
+  isSailing = false;
+  motorRpmLeft = 0;
+  motorRpmRight = 0;
+}
+
+function initMap() {
+  map =  L.map('map');
+  let osm = new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');		
+  map.addLayer(osm);
+  map.setView(new L.LatLng(57.70942631838934, 11.948822736740114), 17);
+
+  markers = new L.FeatureGroup();
+  map.addLayer(markers);
+}
 
 function init2dView() {
   canvas = document.getElementById("2d-view");
@@ -60,6 +119,10 @@ function initLibcluon() {
       $("#right-pedal").text((motorRpmRight * 100.0).toFixed(1));
     }, 100);
 
+    map.on('mouseup', function(e) {
+      dataOut(lc, ws, 19, 0, "{\"latitude\":" + e.latlng.lat + ", \"longitude\":" + e.latlng.lng + "}");
+    });
+
   } else {
     console.log("Error: websockets not supported by your browser.");
   }
@@ -97,6 +160,41 @@ function onMessageReceived(lc, msg) {
 }
 
 function dataIn(data) {
+  if (d.dataType == 19) {
+    const lat = d['opendlv_proxy_GeodeticWgs84Reading']['latitude'];
+    const lon = d['opendlv_proxy_GeodeticWgs84Reading']['longitude'];
+    if (!changedView) {
+      map.setView(new L.LatLng(lat, lon), 18);
+      changedView = true;
+    }
+
+    let c;
+    if (d.senderStamp == 99) {
+      const c = L.circle([lat, lon], {
+        color: "red",
+        fillColor: "red",
+        radius: 1
+      });
+      markers.addLayer(c);
+    }
+    if (d.senderStamp == 0) {
+      const c = L.circle([lat, lon], {
+        color: "blue",
+        fillColor: "blue",
+        radius: 1
+      });
+      markers.addLayer(c);
+    }
+    if (d.senderStamp == 98) {
+      const c = L.circle([lat, lon], {
+        color: "green",
+        fillColor: "green",
+        radius: 1
+      });
+      markers.addLayer(c);
+    }
+
+  }
   if (d.dataType == 1047) {
     if (d.senderStamp == senderStampMotorLeft) {
       $("#left-rpm").text(d['opendlv_proxy_WheelSpeedReading']['wheelSpeed'] / 0.105);
@@ -115,11 +213,6 @@ function dataOut(lc, ws, dataType, senderStamp, messageJson) {
   ws.send(strToAb(message), { binary: true });
 }
 
-init2dView();
-initLibcluon();
-
-
-
 function getMousePos(canvas, evt) {
   let rect = canvas.getBoundingClientRect();
   return {
@@ -127,44 +220,3 @@ function getMousePos(canvas, evt) {
     y: evt.clientY - rect.top
   };
 }
-
-document.body.onmousedown = function (evt) {
-  var pos = getMousePos(canvas, evt);
-  if (pos.x < 0 || pos.x > canvas.width ||
-      pos.y < 0 || pos.y > canvas.height) {
-    isSailing = false;
-    motorRpmLeft = 0;
-    motorRpmRight = 0;
-  } else {
-    isSailing = true;
-  }
-}
-
-document.body.onmousemove = function (evt) {
-  if (isSailing) {
-    var pos = getMousePos(canvas, evt);
-    if (pos.x < 0 || pos.x > canvas.width ||
-        pos.y < 0 || pos.y > canvas.height) {
-    } else {
-      const baseRpm = downScale * (2 * (1.0 - pos.y / canvas.height) - 1);
-      const sideScale = pos.x / canvas.width;
-      if (sideScale < 0.5) {
-        motorRpmRight = baseRpm * (pos.x / (0.5 * canvas.width));
-      } else {
-        motorRpmRight = baseRpm;
-      }
-      if (sideScale > 0.5) {
-        motorRpmLeft = baseRpm * (1.0 - ((pos.x - 0.5 * canvas.width) / (0.5 * canvas.width)));
-      } else {
-        motorRpmLeft = baseRpm;
-      }
-    }
-  }
-}
-
-document.body.onmouseup = function (evt) {
-  isSailing = false;
-  motorRpmLeft = 0;
-  motorRpmRight = 0;
-}
-
