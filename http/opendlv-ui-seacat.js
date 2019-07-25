@@ -8,6 +8,13 @@ const senderStampRodderLeft = 2;
 const senderStampRodderRight = 3;
 const senderStampThruster = 4;
 
+const servoMin = -1.5;
+const servoMax = 1.5;
+const servoInitial = 0.0;
+const motorMin = 0.0;
+const motorMax = 1.0;
+const motorInitial = 0.0;
+
 let isSailing = false;
 let motorLeft = 0;
 let motorRight = 0;
@@ -69,11 +76,11 @@ function initLibcluon() {
       dataOut(lc, ws, dataType, senderStampRodderRight, "{\"position\":" + rodderRight + "}");
       dataOut(lc, ws, dataType, senderStampThruster, "{\"position\":" + thruster + "}");
       
-      $("#motor-left").text((motorLeft * 100.0).toFixed(1));
-      $("#motor-right").text((motorRight * 100.0).toFixed(1));
-      $("#rodder-left").text((rodderLeft * 100.0).toFixed(1));
-      $("#rodder-right").text((rodderRight * 100.0).toFixed(1));
-      $("#thruster").text((thruster * 100.0).toFixed(1));
+      $("#motor-left").text((motorLeft).toFixed(1));
+      $("#motor-right").text((motorRight).toFixed(1));
+      $("#rodder-left").text((rodderLeft).toFixed(1));
+      $("#rodder-right").text((rodderRight).toFixed(1));
+      $("#thruster").text((thruster).toFixed(1));
     }, 100);
 
   } else {
@@ -151,11 +158,11 @@ document.body.onmousedown = function (evt) {
   if (pos.x < 0 || pos.x > canvas.width ||
       pos.y < 0 || pos.y > canvas.height) {
     isSailing = false;
-    motorLeft = 0.5;
-    motorRight = 0.5;
-    rodderLeft = 0.5;
-    rodderRight = 0.5;
-    thruster = 0.5;
+    motorLeft = motorInitial;
+    motorRight = motorInitial;
+    rodderLeft = servoInitial;
+    rodderRight = servoInitial;
+    thruster = servoInitial;
   } else {
     isSailing = true;
   }
@@ -169,27 +176,28 @@ document.body.onmousemove = function (evt) {
     } else {
       const sideScale = pos.x / canvas.width;
       
-      const base = 1.0 - pos.y / canvas.height;
+      const motorBase = motorMax - (motorMax - motorMin) * pos.y / canvas.height;
       if (sideScale < 0.5) {
-        motorRight = base * (pos.x / (0.5 * canvas.width));
+        motorRight = motorBase * (pos.x / (0.5 * canvas.width));
       } else {
-        motorRight = base;
+        motorRight = motorBase;
       }
       if (sideScale > 0.5) {
-        motorLeft = base * (1.0 - ((pos.x - 0.5 * canvas.width) / (0.5 * canvas.width)));
+        motorLeft = motorBase * (1.0 - ((pos.x - 0.5 * canvas.width) / (0.5 * canvas.width)));
       } else {
-        motorLeft = base;
+        motorLeft = motorBase;
       }
 
-      rodderRight = sideScale;
-      rodderLeft = sideScale;
+      const steering = (servoMax - servoMin) * sideScale - servoMax;
+      rodderRight = steering;
+      rodderLeft = steering;
 
       if (sideScale < 0.1) {
-        thruster = 0.5 * pos.x / (0.1 * canvas.width);
+        thruster = servoMin * (0.1 * canvas.width - pos.x) / (0.1 * canvas.width);
       } else if (sideScale > 0.9) {
-        thruster = 0.5 + 0.5 * (pos.x - 0.9 * canvas.width) / (0.1 * canvas.width);
+        thruster = servoMax * (pos.x - 0.9 * canvas.width) / (0.1 * canvas.width);
       } else {
-        thruster = 0.5;
+        thruster = servoInitial;
       }
     }
   }
@@ -197,10 +205,10 @@ document.body.onmousemove = function (evt) {
 
 document.body.onmouseup = function (evt) {
   isSailing = false;
-  motorLeft = 0.5;
-  motorRight = 0.5;
-  rodderLeft = 0.5;
-  rodderRight = 0.5;
-  thruster = 0.5;
+  motorLeft = motorInitial;
+  motorRight = motorInitial;
+  rodderLeft = servoInitial;
+  rodderRight = servoInitial;
+  thruster = servoInitial;
 }
 
